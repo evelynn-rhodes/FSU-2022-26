@@ -1,0 +1,91 @@
+---
+title: "Final-Project-Rhodes"
+output: html_document
+date: "2025-11-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rlang)
+library(ggplot2)
+library(stringr)
+library(pheatmap)
+```
+
+
+```{r loading data}
+G_df<-read.csv("GWAS.csv",header = T)
+eQTLs<-read.csv("eQTLs.csv",header = T)
+```
+
+
+```{r}
+#Filter autoimmune vs non-autoimmune eQTLs, this first required where the SNPs has an eQTL
+filteredeQTLs <- eQTLs %>%
+  filter(Adj..association.P.value..FDR. < 0.05 & Adj..association.P.value..FDR. != "N/A")
+```
+
+
+
+```{r}
+filteredeQTLs%>%
+  group_by(Cell.type)%>%
+  summarize(count = n())%>%
+  ggplot(aes(x = Cell.type, y = count)) +
+    geom_bar(stat = "identity")+
+    labs(title = "Frequency of significant eQTLs per cell type", x= "Cell type", y = "Frequency")+
+  theme( axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+```{r}
+dim(G_df)
+merged_Table <- inner_join(G_df,filteredeQTLs)
+names(merged_Table)[names(merged_Table) == "Adj..association.P.value..FDR."] <- "adjAssociation.P.value..FDR."
+
+gwas_long <- merged_Table %>%
+  pivot_longer(cols = starts_with("Adj."), names_to = "cell_type", values_to = "adj_pvalue") %>%
+  filter(adj_pvalue != "N/A")%>%
+  mutate(Immune = case_when(grepl("autoimmune", Disease.Trait..PheGenI., ignore.case = TRUE) ~ "Autoimmune",grepl("immune", Main.categories..PheGenI., ignore.case = TRUE) ~ "Immune (non-autoimmune)",TRUE ~ "Other"))
+    
+gwas_long$cell_type <- gwas_long$cell_type %>%
+  str_remove("Adj\\.\\.association\\.P\\.value\\.in\\.?") %>%
+  str_remove("Adj\\.association\\.P\\.value\\.in\\.?")
+   
+```
+```{r}
+unique(gwas_long$Main.categories..PheGenI.)
+length(unique(gwas_long$Disease.Trait..PheGenI.))
+gwas_top15 <- gwas_long %>%
+  filter(adjAssociation.P.value..FDR. < 0.05)%>%
+  group_by(Main.categories..PheGenI.)%>%
+  summarise(median_effect = median(Absolute.effect.size..slope.))%>%
+  arrange(desc(median_effect))
+gwas_top15Names <- unique(gwas_top15$Main.categories..PheGenI.)
+gwas_top15Names <- gwas_top15Names[1:15]
+gwas_top15Names
+```
+```{r}
+gwas_long %>%
+  filter(Main.categories..PheGenI. %in% gwas_top15Names)%>%
+  group_by(Main.categories..PheGenI.,Immune)%>%
+  summarize(count = n(), .groups = "drop")%>%
+  ggplot(aes(x = str_sub(Main.categories..PheGenI., 1, 20), y = count, fill = Immune))+
+  geom_bar(stat = "identity")+
+  labs(title = "Frequency of significant eQTLs for top disease types", x= "Disease Type", y = "Frequency")+
+  theme( axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+
+```{r}
+gwas_long$Main.categories..PheGenI. <- factor(gwas_long$Main.categories..PheGenI.,levels = gwas_top15Names)
+gwas_long %>%
+  filter(Main.categories..PheGenI. %in% gwas_top15Names)%>%
+  ggplot(aes(x = Main.categories..PheGenI., y = Absolute.effect.size..slope., fill = Immune))+
+  geom_boxplot()+
+  facet_wrap(vars(Main.categories..PheGenI.),ncol = 3)+
+  theme_bw() +
+  theme(axis.title.x = element_blank(),axis.text.x = element_blank(),strip.text = element_text(size = 8, face = "bold", hjust = 0), panel.spacing = unit(1, "lines")) +
+  ylab("Absolute Effect Size (Slope)")
+gwas_top15Names
+```
+

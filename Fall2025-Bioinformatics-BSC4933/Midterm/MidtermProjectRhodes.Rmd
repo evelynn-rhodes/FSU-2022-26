@@ -1,0 +1,254 @@
+---
+title: "Midterm Project - Evelynn Rhodes BSC4933L"
+output: html_document
+date: "2025-10-07"
+---
+# !!! CODE AT THE BOTTOM OF THE DOCUMENT !!!
+
+# Report: 
+
+Midterm Project Paper - An Analysis of Retinoic Acid Concentrations in Distal and Proximal Regeneration
+
+ A paper was submitted in 2024 by James R. Monaghan to GEO under accession number GSE272731, which is associated with the paper “Retinoic acid breakdown is required for proximodistal positional identity during axolotl limb regeneration” (Duerr et al., 2024). This dataset examines how retinoic acid levels and their breakdown by CYP26B1 affect blastema cells’ ability to establish correct proximodistal positional identity during limb regeneration, thereby determining the distance of cells from the upper arm versus the fingertips. Cells were collected from amputations at proximal (upper humerus) and distal (mid-carpal) positions, with DMSO-treated samples serving as a baseline for normal gene expression and distal samples treated with increasing concentrations of TAL, a CYP26B1 inhibitor, to examine how elevated retinoic acid alters gene expression. The dataset is organized with genes as rows (99,081 total) and 15 experimental samples as columns, where each column represents one replicate under a specific condition: DMSO for both proximal and distal regeneration, followed by 0.1, 1, and 5 µM TAL treatments in distal cells. My primary questions are which genes are most highly expressed across all conditions, whether there is a TAL concentration at which distal samples start to resemble proximal samples, and which genes consistently differ between proximal and distal blastemas under DMSO treatment, potentially serving as markers of positional identity. The dataset was uploaded and analyzed in R to explore a pairwise comparison of DMSO-distal and 0.1 µM TAL-treated distal cells to examine how even a small increase in retinoic acid shifts gene expression, hypothesizing that these cells will more closely resemble normal distal regeneration than distal cells exposed to higher TAL concentrations or proximal regeneration, providing insight into how retinoic acid levels modulate positional identity during regeneration. Additionally, a heatmap was created to explore which genes are most highly expressed overall across all conditions and whether there’s a particular TAL dose (0.1, 1, or 5 µM) where distal samples start to resemble proximal samples in their expression, or if the shift is gradual across the doses.
+
+  Analyzing the dataset included using TidyR (Wickham et al., 2025) to help set up the data into a dataframe and filter, along with Bioconductor’s EdgeR package, to calculate normalization factors and group the replicates into their respective conditions (Chen et al., 2025). To get an overall view of the data after normalizing for library size differences and filtering to include only genes with notable expression in at least four samples (CPM > 1), MDS and BCV plots were generated using EdgeR (Chen et al., 2025). The MDS plot, which shows how replicates cluster based on the two dimensions of greatest variability, revealed that most samples grouped fairly close together on the lower range of the second dimension of logFC. A few outliers were visible, mainly in the 5 µM TAL distal and DMSO proximal conditions, which had higher expression along that axis. Along the first dimension, samples spread more widely, indicating some overall differences between conditions. The BCV plot showed a smooth red trend line with scatter points forming a typical curve, where genes with higher expression levels had lower biological variation across replicates. This suggests that normalization was effective and that most of the observed variation between conditions reflects real biological differences rather than noise.
+
+  A pairwise comparison between gene expression in control distal regeneration and the lowest concentration of TAL (0.1 micromolar) was conducted to see how much the expression levels had changed and if there were some genes still expressed at the same level. These boxplots showing the distributions were created using ggplot (Wickham, 2016) after creating and filtering a CPM table with EdgeR (Chen et al., 2025). Most genes showed completely opposite expression patterns between the control distal regeneration and the 0.1 µM TAL treatment. The only gene that had notable expression in both conditions was AMEX60DD00927, which was expressed very low in the control group but much higher with TAL, both with little variation across replicates. For genes that were active in both conditions, replicate variation tended to be higher overall. This pattern suggests that even a small concentration of TAL, which blocks CYP26B1 and raises retinoic acid levels, can cause a major shift in how genes are expressed. It may mean that the presence of retinoic acid itself—rather than how much of it is present—plays a larger role in determining whether gene expression patterns resemble distal or proximal regeneration. For the DMSO-distal group, AMEX60DDU001042058 was very highly expressed with little variation between replicates, suggesting it plays a key role in normal distal regeneration. The fact that this gene’s expression disappears in the presence of TAL indicates that TAL exposure, and thus elevated retinoic acid levels, disrupts this typical regenerative pathway. AMEX60DDU001014209, AMEX60DDU00102850, and AMEX60DDU001041472 were also expressed at high levels in the control, though their larger distributions across replicates suggest more variability in how these genes respond during normal regeneration. In contrast, for the 0.1 µM TAL condition, genes such as AMEX60DD012310, AMEX60DD025503, AMEX60DD043517, AMEX60DDU01007664, and AMEX60DD001030716 were all strongly expressed with wider distributions, implying that their regulation may be more sensitive or variable in response to the altered retinoic acid signaling environment. Overall, these differences highlight how even minimal inhibition of CYP26B1 can dramatically reprogram distal regeneration gene expression, reinforcing the sensitivity of regenerative signaling pathways to retinoic acid balance.
+
+  A heatmap was made to compare the top 50 expressed genes across all three replicates for each of the five experimental conditions. The “complete” clustering method from pheatmap (Kolde, 2025) was used to group together genes with the most similar expression patterns, while the conditions themselves were kept in a fixed order. This approach allowed for a clearer view of whether there was a gradual shift in gene expression from distal to proximal regeneration as TAL concentrations increased. In the heatmap, red and yellow indicate upregulation, while blue represents downregulation, with darker shades showing stronger expression changes. An interesting pattern appeared when comparing the regular distal regeneration and the lowest concentration of TAL (0.1 µM). These two groups showed almost completely opposite expression patterns, which matches what was seen in the pairwise comparison. Both the DMSO-distal and 0.1 µM TAL groups had tightly regulated expression, with replicates showing very similar up- and downregulation across genes. As TAL concentration increased to 1 µM and 5 µM, expression became more broadly upregulated across the genome. These higher concentrations also appeared more consistent within groups and more similar to the proximal control overall. The proximal samples themselves showed more variation in expression, but their general pattern was closer to that of the 1 µM and 5 µM TAL treatments than to the DMSO-distal or 0.1 µM groups. Since TAL inhibits CYP26B1, its presence increases retinoic acid concentration in the cells. After the 0.1 µM treatment, where expression patterns flipped completely from the control, higher TAL concentrations (1 µM and 5 µM) caused gene expression to become less tightly regulated and more broadly upregulated overall. There is a very slight change between the 1 µM TAL condition and the 5 µM TAL condition, where 5 µM is more conducive to regular proximal regeneration. This pattern suggests that increasing retinoic acid levels may reduce gene repression and activate pathways involved in regenerating a wider variety of tissues. In the context of limb regeneration, this supports the idea that higher retinoic acid concentrations push distal cells to behave more like proximal cells—where more complex structures need to be rebuilt after amputation closer to the body. From this data, the shift in gene expression appears to happen more as a “threshold” response than as a gradual transition. The proximal regeneration samples already show more variability across replicates, but they generally follow a pattern of broad upregulation with a few consistently downregulated genes. In contrast, the DMSO-distal and 0.1 µM TAL groups show very tight and opposite regulation patterns across replicates. Together, this suggests that once retinoic acid levels pass a certain point, most genes become upregulated, indicating a major shift in gene activity that aligns with the transition from distal to proximal-like regeneration, and then after that, the genes become more and more similar to proximal regeneration.
+
+  The results from this dataset support that retinoic acid (RA) signaling and its breakdown by CYP26B1 are central to how axolotl limbs establish proximodistal identity during regeneration. As shown by Cunningham and Duester, RA controls gene transcription through nuclear receptors, and enzymes like CYP26B1 keep its concentration low in distal regions to prevent overactivation (Cunningham and Duester, 2015). The paper that created the analyzed dataset expanded on this by showing that when CYP26B1 is inhibited with Talarozole (TAL), distal blastemas begin to take on proximal characteristics, both morphologically and at the gene level, including upregulation of Shox and Meis1 and repression of Hoxa13 (Duerr et al., 2025). My results followed this same trend, showing a clear concentration-dependent shift in gene expression. Even at low levels (0.1 µM TAL), distal regeneration began to shift toward proximal identity, though not as strongly as the higher doses. This was especially shown in the 0.1 µM TAL concentration, as the expression completely changed compared to the regular distal regeneration expression. This probably reflects retinoic acid’s influence on the downregulation of Hoxa13 and upregulation of Shox and Meis genes at moderate concentrations. However, at very high TAL levels, the expression pattern becomes more broadly dysregulated, suggesting that excessive RA exposure may disrupt normal patterning rather than further stabilize proximal identity.
+
+  Earlier work by Monkemeyer et al. (1992) and Kumar et al. (2007) helps explain why this happens so sharply. Monkemeyer et al. showed that RA’s effects on positional identity are dose-dependent, meaning even small increases can cause a measurable change in patterning (Monkemeyer et al., 1992). Kumar et al. identified Prod1 as a key positional marker that increases with RA exposure, forming a gradient that encodes how “far” a cell is along the limb. This fits with what I saw between DMSO-distal and 0.1 µM TAL samples, where a small increase in RA made the distal samples only slightly more proximal, while higher TAL doses pushed the gene expression much further (Kumar et al., 2007). Voss et al. (2018) showed that the transcriptional differences between proximal and distal blastemas also change how the cells physically behave, influencing adhesion, stiffness, and the makeup of the surrounding matrix. This means that positional identity isn’t only defined by which genes are on or off; it’s also reflected in how cells interact with their environment and organize new tissue. Vieira et al. (2019) found that retinoic acid can actually reset this identity in a lasting way, where once cells shift toward a more proximal or posterior state, they keep that identity through later stages of regeneration. Taken together, these findings suggest that what I saw in this dataset reflects a lasting molecular and structural change rather than a temporary shift in expression. In axolotl limb regeneration, adjusting retinoic acid levels doesn’t just tweak gene activity; it redefines how cells understand their position and what structures they’re meant to rebuild.
+
+Citations
+
+Chen Y, Chen L, Lun ATL, Baldoni P, Smyth GK (2025). edgeR v4: powerful differential analysis of sequencing data with expanded functionality and improved support for small counts and larger datasets. Nucleic Acids Research, 53(2), gkaf018. https://doi.org/10.1093/nar/gkaf018
+
+Cunningham, T. J., & Duester, G. (2015). Mechanisms of retinoic acid signalling and its roles in organ and limb development. Nature reviews. Molecular cell biology, 16(2), 110–123. https://doi.org/10.1038/nrm3932
+
+Duerr, T. J., Miller, M., Kumar, S., Bakr, D., Griffiths, J. R., Gautham, A. K., Douglas, D., Randal Voss, S., & Monaghan, J. R. (2025). Retinoic acid breakdown is required for proximodistal positional identity during axolotl limb regeneration. Nature Communications, 16(1). https://doi.org/10.1038/s41467-025-59497-5
+
+Kolde R (2025). pheatmap: Pretty Heatmaps. R package version 1.0.13, https://github.com/raivokolde/pheatmap.
+
+Monkemeyer, J., Ludolph, D.C., Cameron, J.A. and Stocum, D.L. (1992), Retinoic acid-induced change in anteroposterior positional identity in regenerating axolotl limbs is dose-dependent. Dev. Dyn., 193: 286-294. https://doi.org/10.1002/aja.1001930309
+
+Randal Voss, S., Murrugarra, D., Jensen, T. B., & Monaghan, J. R. (2018). Transcriptional correlates of proximal-distal identify and regeneration timing in axolotl limbs. Comparative biochemistry and physiology. Toxicology & pharmacology : CBP, 208, 53–63.
+
+Wickham H, Vaughan D, Girlich M (2025). tidyr: Tidy Messy Data. R package version 1.3.1, https://tidyr.tidyverse.org.
+
+Wickham H (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. ISBN 978-3-319-24277-4, https://ggplot2.tidyverse.org.
+
+Vieira, W. A., Wells, K. M., Raymond, M. J., De Souza, L., Garcia, E., & McCusker, C. D. (2019). FGF, BMP, and RA signaling are sufficient for the induction of complete limb regeneration from non-regenerating wounds on Ambystoma mexicanum limbs. Developmental biology, 451(2), 146–157. https://doi.org/10.1016/j.ydbio.2019.04.008
+
+Randal Voss, S., Murrugarra, D., Jensen, T. B., & Monaghan, J. R. (2018). Transcriptional correlates of proximal-distal identify and regeneration timing in axolotl limbs. Comparative biochemistry and physiology. Toxicology & pharmacology : CBP, 208, 53–63. https://doi.org/10.1016/j.cbpc.2017.10.010
+
+
+# code : 
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### First loading necessary packages
+```{r}
+BiocManager::install("edgeR")
+
+library(edgeR)
+```
+#### First loading necessary ;libraries such as edgeR, dplyr, ggplot2, tidyr, and pheatmp
+
+```{r packages}
+library(edgeR)
+#edge R manual: https://www.bioconductor.org/packages/devel/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(pheatmap)
+```
+
+#### Loading the dataset with read.csv function, seeing summary of data with head and dimensions and then converting the first column to be named gene_id
+
+```{r loading dataset}
+CountTable1<-read.csv("MidtermData.csv",header = T)
+
+head(CountTable1)
+dim(CountTable1)
+
+colnames(CountTable1)[1] <- "gene_id"
+rownames(CountTable1)<-CountTable1$gene_id
+head(CountTable1)
+
+```
+
+#### Grouping the data by aligning conditions to replicates with the groupings. Then create a DGEList object with edgeR. Then looking at the DGE list to see the data to see if gene_id correctly mapped and the counts 
+```{r}
+groupings<-c("0.1-uM", "0.1-uM", "0.1-uM", "1-uM", "1-uM", "1-uM", "5-uM", "5-uM", "5-uM", "DMSO-dist", "DMSO-dist", "DMSO-dist","DMSO-prox","DMSO-prox", "DMSO-prox")
+
+d1<-DGEList(counts=CountTable1,group=factor(groupings))
+
+d1$samples #metadata about each sample (library size, group, etc.)
+head(d1$genes) #gene_ids
+head(d1$counts) #gene expression counts
+```
+#### Calculated norm factors of the table, so the samples have a  norm.factor column.Then reduce number of genes to only ones that had a cpm of greater than one in at least four of the samples; genes with meaningful expression are kept.
+
+```{r}
+d1<-calcNormFactors(d1) #adjusts for differences in library sizes across samples, ensuring expression values are comparable
+
+d1$samples 
+
+
+dim(d1)
+keep_filter<-rowSums(cpm(d1)>1)>=4 
+
+d1<-d1[keep_filter,]
+dim(d1)
+```
+#### EdgeR's negative binomial distribution to show how much "noise" is in the genes expressed (allows edgeR to show truly differentialty expressed genes instead of genes that were expressed by chance). MDS_plot shows a first view into biological similarity/distance between each sample based on expression. Look into areas such as clustering of replicates across a condition to see if they had a similar expression. 
+
+```{r}
+d1<-estimateDisp(d1) 
+MDS_plot<-plotMDS(d1)
+```
+
+#### Biological coefficient of variation plot visualize the common and tagwise dispersion vs average log CPM of expression
+
+
+```{r}
+plotBCV(d1)
+```
+
+#### Start comparing DSMO distal and 0.1 UM of TAL (Should be slightly different, but with the lowest conditions, how much difference is there between these two genes)
+```{r}
+de.tag<-exactTest(d1,d1$tagwise.dispersion,pair=c("DMSO-dist","0.1-uM" ))
+
+head(de.tag$table)
+
+head(de.tag$table)
+
+head(de.tag$genes)
+
+de.tag$comparison
+```
+
+
+#### Get the top differentially expressed genes, sort by greatest to least, save sorted into new table. Then filter to genes that were significantly differentially expressed genes, they have an FDR greater than 0.05
+```{r}
+topTags(de.tag)
+
+de.tag_sort<-topTags(de.tag,n=nrow(de.tag$table))$table
+res <- de.tag_sort
+res$gene_id <- rownames(res)
+
+head(de.tag_sort)
+
+de.tag_sort_sig<-de.tag_sort%>%
+  filter(FDR<0.05)
+
+dim(de.tag_sort_sig)
+```
+
+#### Now get cpm table and put it into a data frame and look into the CPM table
+```{r}
+cpm_table<-cpm(d1,normalized.lib.sizes = TRUE)
+
+cpm_table<-as.data.frame(cpm_table)
+cpm_table$gene_id<-rownames(cpm_table)
+head(cpm_table)
+dim(cpm_table)
+
+rownames(CountTable1) <- CountTable1$gene_id
+```
+
+#### Convert CPM table to a long format
+
+```{r}
+cpm_table_long<-cpm_table%>%
+  pivot_longer(cols = 1:15,names_to = "condition",values_to = "CPMs")%>%
+  mutate(groups=rep(groupings,39781))
+
+print(cpm_table_long,n=15) #looks good
+```
+
+#### Get just the top 10 genes expressed and their names
+```{r}
+top10genes<-de.tag_sort[1:10,]
+dim(top10genes)
+top10geneNames<-top10genes$gene_id
+top10geneNames
+print(top10geneNames)
+```
+
+
+
+### PAIRWISE ANALYSIS
+#### Create a new CPM table that is filtered to just the two grouping we want to compare, which in this case is DSMO distal regeneration (the control). Then create a box plots of the top 10 differentialy expressed genes
+                                                                7
+```{r, echo = "T"}
+cpm_table_long_subset <- cpm_table_long %>%
+  filter(groups %in% c("DMSO-dist", "0.1-uM"))
+
+dim(cpm_table_long_subset)
+
+cpm_table_long_subset%>%
+  filter(gene_id %in% top10geneNames)%>%
+  ggplot(aes(x=groups,y=CPMs,color=gene_id))+
+  geom_boxplot()+geom_point()+facet_wrap(vars(gene_id),ncol=3,scales = "free_y") +  scale_x_discrete(limits = c("DMSO-dist", "0.1-uM"))
+```
+
+
+### HEAT MAP
+#### For the heatmap take the most differentially expressed genes. Create a scale for easy coloring, plot the heat map
+
+```{r}
+topN <- 50
+logCPM <- cpm(d1, log = TRUE, prior.count = 2)
+
+top_genes <- head(rownames(res[order(res$FDR, -abs(res$logFC)), ]), topN)
+top_genes <- intersect(top_genes, rownames(logCPM))
+
+if (length(top_genes) >= 2) {
+  desired_order <- c("DMSO-dist", "0.1-uM", "1-uM", "5-uM", "DMSO-prox")
+  
+  groupings <- ifelse(grepl("DMSO.dist", colnames(logCPM)), "DMSO-dist",
+               ifelse(grepl("0point1", colnames(logCPM)), "0.1-uM",
+               ifelse(grepl("1.uM", colnames(logCPM)), "1-uM",
+               ifelse(grepl("5.uM", colnames(logCPM)), "5-uM",
+               "DMSO-prox"))))
+  
+  ann_col <- data.frame(Group = groupings)
+  rownames(ann_col) <- colnames(logCPM)
+  
+  # Reordering columns 
+  ordered_indices <- order(factor(ann_col$Group, levels = desired_order))
+  logCPM <- logCPM[, ordered_indices]
+  ann_col <- ann_col[ordered_indices, , drop = FALSE]
+  
+  z <- t(scale(t(logCPM[top_genes, , drop = FALSE])))
+  z[is.na(z)] <- 0
+  z[z > 3] <- 3
+  z[z < -3] <- -3
+  
+  # Plot heatmap
+  pheatmap(
+    z,
+    annotation_col = ann_col,
+    clustering_method = "complete",
+    cluster_cols = FALSE,
+    show_rownames = TRUE,
+    show_colnames = TRUE,
+    fontsize_row = 4,
+    main = paste0("Top ", length(top_genes), " DE genes (z-scored logCPM)")
+  )
+}
+
+
+```
+
+
+
+
+
+
+

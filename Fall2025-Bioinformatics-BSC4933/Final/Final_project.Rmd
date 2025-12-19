@@ -1,0 +1,180 @@
+---
+title: "Final_Project_Rhodes"
+output: html_document
+date: "2025-11-20"
+---
+
+### PAPER AT THE END OF THE CODE!
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rlang)
+library(ggplot2)
+library(stringr)
+library(pheatmap)
+```
+
+```{r}
+G_df<-read.csv("GWAS.csv",header = T)
+eQTLs<-read.csv("eQTLs.csv",header = T)
+
+AUTOIMMUNENAMES <- c(
+  "Alopecia areata",
+  "Behcet's disease",
+  "Birdshot chorioretinopathy",
+  "Celiac disease",
+  "Crohn's disease",
+  "Diabetes mellitus, type 1",
+  "Eosinophilic esophagitis",
+  "Giant cell arteritis",
+  "Graves' disease",
+  "Juvenile arthritis",
+  "Lupus erythematosus, cutaneous",
+  "Lupus erythematosus, systemic",
+  "Multiple sclerosis",
+  "Myasthenia gravis",
+  "Narcolepsy",
+  "Psoriasis",
+  "Psoriatic arthritis",
+  "Rheumatoid arthritis",
+  "Sjogren's syndrome",
+  "Ulcerative colitis",
+  "Vitiligo"
+)
+
+G_df <- G_df%>%
+  filter(grepl("disease", Main.categories..PheGenI.))
+
+merged_Table <- inner_join(G_df,eQTLs)
+
+names(merged_Table)[names(merged_Table) == "Adj..association.P.value..FDR."] <- "adjAssociation.P.value..FDR."
+
+gwas_long <- merged_Table %>%
+  pivot_longer(cols = starts_with("Adj."), names_to = "cell_type", values_to = "adj_pvalue") %>%
+  filter(adj_pvalue != "N/A")%>%
+  filter(adjAssociation.P.value..FDR. < 0.05)%>%
+  mutate(Main.categories..PheGenI. = ifelse(Disease.Trait..PheGenI. %in% AUTOIMMUNENAMES, str_c(Main.categories..PheGenI.,"; autoimmune"), Main.categories..PheGenI.))%>%
+  separate_rows(Main.categories..PheGenI., sep = ";")%>%
+  mutate(Main.categories..PheGenI. = trimws(Main.categories..PheGenI.))
+
+    
+gwas_long$cell_type <- gwas_long$cell_type %>%
+  str_remove("Adj\\.\\.association\\.P\\.value\\.in\\.?") %>%
+  str_remove("Adj\\.association\\.P\\.value\\.in\\.?")
+```
+
+```{r}
+gwas_long %>%
+  filter(adjAssociation.P.value..FDR. < 0.001)%>%
+  group_by(Main.categories..PheGenI.) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))%>%
+  ggplot(aes(x = reorder(Main.categories..PheGenI., -count), y = count)) +
+  geom_bar(stat = "identity")+
+  labs(title = "Fig 1A: Frequency of significant SNPs for disease category", x= "Disease Category", y = "Frequency")+
+  theme( axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) 
+
+gwas_long %>%
+  filter(adjAssociation.P.value..FDR. < 0.001)%>%
+  ggplot(aes(x = Main.categories..PheGenI., y =Absolute.effect.size..slope.)) +
+  geom_boxplot()+
+  labs(title = "Fig 1B: Distribution of SNPs Absolute Affect Slope Size for Each Disease Category", x= "Disease Category", y = "Absolute Affect Slope Size")+
+  theme( axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))  
+
+Table1C <- gwas_long %>%
+  filter(Main.categories..PheGenI. == "autoimmune", adjAssociation.P.value..FDR. < 0.001)%>%
+  group_by(Disease.Trait..PheGenI.)%>%
+  summarize(count = n(), max_slope = max(Absolute.effect.size..slope.), median_slope = median(Absolute.effect.size..slope.))%>%
+  arrange(desc(median_slope))
+Table1C
+
+```
+```{r}
+sig_df <- gwas_long %>%
+  mutate(sig = ifelse(adjAssociation.P.value..FDR. < 0.05, 1, 0))
+
+gene_cell_mat <- sig_df %>%
+  group_by(GWAS.eGene.ID, cell_type) %>%
+  summarize(sig_present = ifelse(sum(sig) > 0, 1, 0), .groups = "drop") %>%
+  pivot_wider(
+    names_from = cell_type,
+    values_from = sig_present,
+    values_fill = 0
+  )
+
+mat <- as.matrix(gene_cell_mat[ , -1])
+rownames(mat) <- gene_cell_mat$GWAS.eGene.ID
+
+gene_var <- apply(mat, 1, var)
+
+top_genes <- names(sort(gene_var, decreasing = TRUE))[1:50]
+
+mat_top <- mat[top_genes, ]
+
+pheatmap(
+  mat_top,
+  clustering_method = "complete",
+  cluster_rows = FALSE,
+  cluster_cols = TRUE,
+  color = c("white", "black"),     # 0 = white, 1 = black (binary)
+  legend = FALSE,
+  fontsize_row = 6,
+  fontsize_col = 8,
+  main = "Fig 2A: Presence/Absence of Significant SNPs in Top 50 Variable Genes Across Cell Types"
+)
+
+gwas_long %>%
+  filter(adjAssociation.P.value..FDR. < 0.001)%>%
+  ggplot(aes(x = Cell.type, y = Absolute.effect.size..slope.)) +
+  geom_boxplot()+
+  labs(title = "Fig 2B: Distribution of SNPs Absolute Affect Slope Size for Each Immune Cell Type", x= "Immune Cell Type", y = "Absolute Affect Slope Size")+
+  theme( axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))  
+```
+
+
+
+
+
+# Final Project - Evelynn Rhodes
+
+
+
+In 2018, a dataset was created that analyzed “Impact of Genetic Polymorphisms on Human Immune Cell Gene Expression” by Schmiedel et al.(Schmiedel et al., 2018). In this study, researchers worked with 91 healthy adults and collected large amounts of blood to look closely at the different immune cell types people have. From each person, they separated the major immune cells and then sorted them into 13 specific cell types, and in some cases briefly activated T cells to see how gene expression changes when those cells are “switched on.” After sorting the cells, they extracted RNA and used RNA-seq on an Illumina platform to measure which genes were active in each cell type. The researchers also genotyped every donor so they could match each person’s genetic variants (SNPs) to the gene expression patterns they observed. Using these genetic and expression data together, they identified SNPs that change the activity of specific genes (eQTLs), and then checked which of those SNPs were also known from GWAS studies to be linked to human diseases. The overall goal was to understand how normal genetic differences between people influence immune cell behavior, and which immune cell types are most affected by disease-associated genetic variants. This dataset created multiple supplementary tables, two of which were notable for this project. Table S3 has the location, p values, absolute affect slope size, eGene data, and reference/alternative sequences of significant SNPs. Table S4 has the GWAS eGenes and the amount of expression in the genes for each immune cell type. 
+
+This data collected in the two supplementary tables had generated two inquiries. The first if SNPs were more common and affective in autoimmune diseases than other diseases as autoimmune diseases are directly tied to genetic differences in immune cells.The second question I want to explore is how are GWAS-associated SNPs distributed across immune cell types, and do they cluster in particular cell states. A hypothesis is that Activated T cells will show a higher density of GWAS-associated SNPs acting as eQTLs than resting B cells or monocytes as activating T cells has to wildly change the expression patterns of the gene. To answer these questions,  the data was first prepared by classifying certain diseases as immune. In the original data, diseases such as alopecia areata and vitiligo were not included in an autoimmune category or even as an immune disease. The only thing classified as “autoimmune” originally was “autoimmune diseases” being a general disease rather than a category of diseases. To classify some diseases as autoimmune, a table from the Global Autoimmune Institute(Global Autoimmune Institute) to create a list of autoimmune diseases from the dataset. To ensure that each SNP would be considered for every disease category it was apart of, the SNP had a row dedicated for each category it was apart of by using the separate_rows() function. The next methods for analysis was to use ggplot2(Wickham H, 2016), tidyverse (Wickham H, 2025), and pheatmap(Kolde R, 2025) to filter and plot data that would sufficiently answer these questions. These included a bar plot of number of SNPs for each disease category, Box plots of the distribution of SNPs absolute affect slope size for each disease category, and a table of the autoimmune diseases with the highest absolute affect slope sizes. For the second question a heatmap that looks at the top differentially expressed genes between SNPs were plotted on a heatmap to se which genes were expressed in each immune cell and how they cluster together, a box plot was also made to see the distribution of the absolute effect slope size of SNPs over each type of immune cell to see which immune cells have stronger SNPs. 
+
+To analyze if autoimmune diseases have stronger and a larger quantity of SNPs, After having each GWAS-associated SNP correctly separated and categorized, a bar plot was created as figure 1A. Biologically this barplot shows how many SNPs showed significant differences between the alternate and reference sequences in the immune cells analyzed. A higher frequency means that more SNPs passed the significance threshold for that category based on the allele specific expression results in the immune cells. This pattern can reflect several factors, including how polygenic a disease category is and how extensively those diseases have been examined in genetic research. In this context, the frequency simply indicates how many SNPs in the dataset showed meaningful associations for each disease category, based on the criteria used in the analysis.In the generated barplot, Autoimmune diseases and immune diseases did have high SNP counts, which makes sense as the diseases are associated with defects in the immune cells. Cancer (neoplasms), Digestive system diseases, and skin and connective tissue diseases also have a higher frequency of SNPs. Cancer biologically makes sense to appear with higher SNP frequency because many cancer GWAS identify large numbers of genetic risk loci, and some of these variants also show measurable regulatory differences in immune cells. Skin and connective tissue diseases can biologically make sense as well, as many autoimmune conditions (alopecia areata, vitiligo, rheumatoid arthritis) fall under these categories in the dataset (What is a connective tissue disease?, 2025). The same applies to digestive system diseases where autoimmune-mediated conditions such as celiac disease, Crohn’s disease, and ulcerative colitis are present (What are gastrointestinal (GI) diseases? 2025). 
+
+A boxplot was also made in Figure 1B. This boxplot shows the distribution of the SNPs’ absolute slope size for each disease category. The absolute effect size slope describes how large of an impact the SNP has on the trait expression (either increased/decreased). For the boxplots, the absolute effect size slope of the SNPs for each disease category creates a distribution. This distribution can show if one category has more/less effect than others, a broader distribution of effect size, or which categories have the most outlying SNPs. Figure 1B shows that there are no diseases with a significantly higher distribution of affect sizes as the bars do overlap with each other, but some categories have many outlying affect sizes and very narrow distribution. Autoimmune diseases and immune system diseases have many outliers as those are tied directly to immune cells, so the effect of the SNP is quite large in many of those diseases. Digestive system diseases, skin and connective tissue diseases, nutritional and metabolic diseases, and cardiovascular diseases also show many outliers. This likely reflects that several autoimmune or immune-related diseases also overlap into other disease categories as talked about in the analysis for figure 1A, these categories from the boxplot seems to be  Digestive system diseases, skin and connective tissue diseases, nutritional and metabolic diseases, and cardiovascular diseases, which autoimmune diseases do increase the risk of (Porsch & Binder, 2024). To make sure of this, I created a descending table of the diseases classified as autoimmune in table 1C and saw diseases that fell into other categories mentioned such as celiac disease, vitiligo, type 1 diabetes, and Crohn’s disease. These diseases also affect phenotype of affected individuals greatly and also can fall into the other categories such as skin and connective tissue diseases and metabolic diseases. From this analysis, I can say that both the greater frequency and more high-effect outlying SNPs in immune cells are categorized as autoimmune as well as immune and to support this, other categories of diseases with high frequency and greater affects are related to autoimmune and immune diseases.
+
+To analyze how are GWAS-associated SNPs distributed across immune cell types, and do they cluster in particular cell states, to interpret the role of each immune cells, an informative page written by Peter J. Delves was used (Delves, 2024). First, figure 2A being a heat map of the top 50 genes affected by SNPs (the most variable) showed if the gene was significantly expressed in each cell type, the heatmap was then clustered based on the immune cell type. Figure 2A s. In the heatmap, the clearest detail is that similar types of immune cells do cluster together in expression, for example most TH immune cells have similar genes expressed and overall more genes expressed. The same goes for monocytes and T cells (with activated T cells between CD4 and CD8 being more similar to each other than non-activated counterparts). All the TH cells belong in the helper T cell groups, which are differentiated from CD4 or CD8 T cells.The reason the TH cells show more SNP-affected genes is that differentiated T-cell states rely on very specific gene-expression programs that are tightly controlled by regulatory DNA elements. Because these states depend heavily on promoters, enhancers, and chromatin remodeling to maintain their identity, genetic variation in those regulatory regions can have a stronger impact on gene expression in TH cells than in less differentiated T-cell types (Shmidl et al. 2018). In Figure 2B, there is a boxplot that shows the distribution of absolute affect slope sizes of SNPs in each immune cell type. From this graph, a few patterns stand out. Activated naïve CD4+ T cells and activated naïve CD8+ T cells show slightly higher median effect sizes and a wider spread of values, meaning that the SNPs present in these activated states tend to drive larger changes in gene expression. This fits with the idea that activation relies on more dynamic regulatory programs, such as ones that determine differentiation, so sequence differences can produce stronger shifts in expression. In contrast, cell types like NK cells and monocytes show narrower distributions, indicating more moderate and consistent effect sizes across their associated SNPs.Taken together, these findings show that immune cells with similar functional roles cluster together in their expression patterns, and that the most dynamic activated T cell states are where genetic variation has the strongest impact on gene expression as they differentiate into distinct T helper cells with their own expression programs, making them more sensitive to SNP changes.
+
+This analysis demonstrates that genetic variation influences immune gene expression in patterns that reflect both disease biology and immune cell identity. Autoimmune and immune-related diseases showed some of the highest frequencies of significant SNPs, along with many large-effect outliers, which aligns with the strong regulatory dependence of these conditions on immune cell function. Several non-immune categories with high SNP counts, such as digestive and connective tissue diseases, also contained autoimmune disorders, supporting the idea that immune dysregulation contributes broadly across disease groups. At the cell type level, genes affected by SNPs showed clear clustering, with immune cells of similar functional roles sharing similar expression patterns. Activated CD4 and CD8 T cells displayed larger and more variable effect sizes when looking at absolute affect slope size, and differentiated T helper states showed the highest concentrations of SNP-responsive genes when looking at the heatmap, reflecting how activation and specialization rely on dynamic regulatory programs that are especially sensitive to genetic variation. Taken together, these findings highlight that the impact of disease-associated genetic variants is not evenly distributed, but instead concentrates in immune pathways and cell states where gene regulation is most complex, providing insight into how immune-related risk variants shape human disease.
+
+
+
+Citations
+
+Cleveland Clinic. (2025a, August 19). What are gastrointestinal (GI) diseases?. Cleveland Clinic. https://my.clevelandclinic.org/health/articles/7040-gastrointestinal-diseases 
+
+Cleveland Clinic. (2025b, November 26). What is a connective tissue disease?. Cleveland Clinic. https://my.clevelandclinic.org/health/diseases/14803-connective-tissue-diseases 
+Delves, P. J. (2024). Cellular components of the immune system - immunology; allergic disorders. Merck Manual Professional Edition. https://www.merckmanuals.com/professional/immunology-allergic-disorders/biology-of-the-immune-system/cellular-components-of-the-immune-system#Lymphocytes_v992153 
+
+Global Autoimmune Institute . (n.d.). A-Z autoimmune disease list: Global Autoimmune Institute.  Empowering Solutions for Autoimmune Disease. https://www.autoimmuneinstitute.org/resources/autoimmune-diseases-list/ 
+
+Kolde R (2025). pheatmap: Pretty Heatmaps. R package version 1.0.13, https://github.com/raivokolde/pheatmap.
+
+Porsch, F., & Binder, C. J. (2024). Autoimmune diseases and atherosclerotic cardiovascular disease. Nature Reviews Cardiology, 21(11), 780–807. https://doi.org/10.1038/s41569-024-01045-7 
+
+Schmiedel, B. J., Singh, D., Madrigal, A., Valdovino-Gonzalez, A. G., White, B. M., Zapardiel-Gonzalo, J., Ha, B., Altay, G., Greenbaum, J. A., McVicker, G., Seumois, G., Rao, A., Kronenberg, M., Peters, B., & Vijayanand, P. (2018). Impact of genetic polymorphisms on human immune cell gene expression. Cell, 175(6). https://doi.org/10.1016/j.cell.2018.10.022 
+
+Schmidl, C., Delacher, M., Huehn, J., & Feuerer, M. (2018). Epigenetic mechanisms regulating T-cell responses. Journal of Allergy and Clinical Immunology, 142(3), 728–743. https://doi.org/10.1016/j.jaci.2018.07.014 
+
+
+Wickham H, Vaughan D, Girlich M (2025). tidyr: Tidy Messy Data. R package version 1.3.1, https://tidyr.tidyverse.org.
+
+Wickham H (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. ISBN 978-3-319-24277-4, https://ggplot2.tidyverse.org.
+
+
+
